@@ -18,6 +18,22 @@ function stateIndex = ComputeTerminalStateIndex(stateSpace, map)
 %           An integer that is the index of the terminal state in the
 %           stateSpace matrix
 
-global DROP_OFF
-                  
+global DROP_OFF K
+
+%MATLAB starts indexing at 1 so an index of 0 doesn't correspond to any
+%state in the matrix
+stateIndex= 0; 
+
+for i= 1:K
+    m = stateSpace(i,1);
+    n = stateSpace(i,2);
+    if (map(m,n)==DROP_OFF) && ( stateSpace(i,3) == 1)
+        stateIndex=i;
+        return;
+    end 
+end
+
+%If the function doesn't return above then display an error message
+disp('Error looking for the terinal state index');
+
 end
