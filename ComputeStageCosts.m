@@ -28,6 +28,18 @@ function G = ComputeStageCosts(stateSpace, map)
     global NORTH SOUTH EAST WEST HOVER
     global K
     global TERMINAL_STATE_INDEX
+    
+    for i=1:K
+        for j=1:5
+            G(i,j) = 1;
+            if(i == TERMINAL_STATE_INDEX)
+                G(i,j)=0;
+            end
+            if(map(stateSpace(i,1),stateSpace(i,2)) == BASE && stateSpace(i,3) == 0)
+                G(i,j)= Nc;
+            end
+        end
+    end
 
 end
 
