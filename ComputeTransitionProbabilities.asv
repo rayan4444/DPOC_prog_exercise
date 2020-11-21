@@ -78,15 +78,14 @@ for i=1:K
                    end
 
                 elseif p_i==0 && p_j==0 
-                    if map(m_j, n_j) ~= PICK_UP %j cannot be the pickup location and have no package)
                      %calculate probability of nearby cells
-                     P=P+transition_probabilities_no_crash(i, j, m_i, n_i, m_j, n_j,map);
-                    end 
+                    P=P+transition_probabilities_no_crash(i, j, m_i, n_i, m_j, n_j,map);
+
                     if map(m_j, n_j) == BASE %if j is the base, we need to include the probability of crashing
                         P=P+base_transition_probability(i,j,m_i,n_i,map);
                     end 
                     
-             
+              
 
                 elseif p_i==1 && p_j==1 % drone moved and didn't crash
                     %calculate probability of nearby cells
