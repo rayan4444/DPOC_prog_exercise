@@ -27,7 +27,7 @@ stateIndex= 0;
 for i= 1:K
     m = stateSpace(i,1);
     n = stateSpace(i,2);
-    if (map(m,n)==DROP_OFF) && ( stateSpace(i,3) == 1)
+    if (map(m,n)==DROP_OFF) && (stateSpace(i,3) == 1)
         stateIndex=i;
         return;
     end 

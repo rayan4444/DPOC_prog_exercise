@@ -75,7 +75,7 @@ for i=1:K
                       base_transition_probability(i,j,P,m_i,n_i,map);
                    end
 
-                elseif p_i==0 && p_j==0 
+                elseif p_i==0 && p_j==0 %when exactly is this one the case?
                      %calculate probability of nearby cells
                     transition_probabilities_no_crash(i, j, P, m_i, n_i, m_j, n_j,map);
 
@@ -192,7 +192,7 @@ global K TERMINAL_STATE_INDEX
     
     %scenario 2: wind North
     if (ni+1)>ymax % blown off map
-        P(i,j,input)=P(i,j,input)+0.25*P_WIND;
+        P(i,j,input)=P(i,j,input)+0.25*P_WIND; %Where is this 0.25 coming from? 
     else
         temp= map(mi,ni+1);
         if (temp ~= TREE) %get shot in new spot
@@ -386,7 +386,7 @@ switch d
             end 
         end
         
-        if mj==(mi-1)
+        if mj==(mi-1)  %Patty: I think this part may need to be extended 
             % as long as the desitnation exists, we know that the
             % intermediate step is within map bounds, so we only need to
             % make sure there are no trees in the way 
