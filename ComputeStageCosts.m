@@ -39,7 +39,7 @@ function G = ComputeStageCosts(stateSpace, map)
             y_i = stateSpace(i,2);
             if (i == TERMINAL_STATE_INDEX)
                 G(i,j)=0;
-            end
+            else
             %Scenario 1 : Go north 
             if(j == NORTH)
                 G(i,j) = input_not_allowed(x_i,y_i,map,NORTH) + 0.25*P_WIND*cost_to_go_here(x_i,y_i,map) + ...
@@ -79,6 +79,7 @@ function G = ComputeStageCosts(stateSpace, map)
                 0.25*P_WIND*cost_to_go_here(x_i-1,y_i,map)+ ...
                 0.25*P_WIND*cost_to_go_here(x_i+1,y_i,map)+ ...
                 (1-P_WIND)*cost_to_go_here(x_i,y_i,map);
+            end
             end
         end
     end
@@ -129,7 +130,11 @@ else
     if(map(x,y) == TREE)
         q1 = Nc;
     else
+        if(p_no_shoot(x,y,map)<1)
         q1 = (1-p_no_shoot(x,y,map))*Nc;
+        else 
+        q1 = 1;
+        end
     end
 
 end
