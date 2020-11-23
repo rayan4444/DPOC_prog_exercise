@@ -42,10 +42,11 @@ function G = ComputeStageCosts(stateSpace, map)
             else
             %Scenario 1 : Go north 
             if(j == NORTH)
-                G(i,j) = input_not_allowed(x_i,y_i,map,NORTH) + 0.25*P_WIND*cost_to_go_here(x_i,y_i,map) + ...
+                G(i,j) = input_not_allowed(x_i,y_i,map,NORTH) + ...
+                0.25*P_WIND*cost_to_go_here(x_i,y_i,map) + ...
                 0.25*P_WIND*cost_to_go_here(x_i-1,y_i+1,map)+ ...
                 0.25*P_WIND*cost_to_go_here(x_i,y_i+2,map)+ ...
-                0.25*P_WIND*cost_to_go_here(x_i,y_i,map)+ ...
+                0.25*P_WIND*cost_to_go_here(x_i+1,y_i+1,map)+ ...
                 (1-P_WIND)*cost_to_go_here(x_i,y_i+1,map);
 
             end
@@ -131,7 +132,7 @@ else
         q1 = Nc;
     else
         if(p_no_shoot(x,y,map)<1)
-        q1 = (1-p_no_shoot(x,y,map))*Nc;
+        q1 = 1+(1-p_no_shoot(x,y,map))*Nc;
         else 
         q1 = 1;
         end
@@ -150,14 +151,14 @@ q2 = 0;
 [xmax,ymax]=size(map);
 %test if we want to go in a tree or out of the boundaries
     
-            if ((y == 1)  && (input == NORTH))
+            if ((y == 1)  && (input == SOUTH))
                 q2 = inf;
             end
             if((y+1<=ymax) && (map(x,y+1)==TREE) && (input == NORTH))
                 q2 = inf;
             end
 
-            if((y==ymax) && (input == SOUTH))
+            if((y==ymax) && (input == NORTH))
                 q2 = inf;
             end
             if((y-1>=1 && map(x,y-1)==TREE) && (input == SOUTH))
