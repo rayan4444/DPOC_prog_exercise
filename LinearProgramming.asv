@@ -39,7 +39,7 @@ global TERMINAL_STATE_INDEX
 % in the ComputeTerminalStateIndex.m file (see main.m)
 I=eye(K);
 J_opt=zeros(K,1);
-f=-ones(K,1);
+f=ones(K,1);
 
 
 for l=1:5 % iterate for every input
@@ -62,6 +62,6 @@ for l=1:5 % iterate for every input
 end 
 %after we have our massive matrix we run linprog and it magically spits out a solution
 [%x,fval] = linprog(___), for any input arguments, returns the value of the objective function fun at the solution x: fval = f'*x.
- [J_opt, u_opt_ind]=linprog(f,A,b);
+ [J_opt, u_opt_ind]=linprog(f,
 end
 
