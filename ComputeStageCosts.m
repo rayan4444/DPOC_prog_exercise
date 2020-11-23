@@ -131,11 +131,7 @@ else
     if(map(x,y) == TREE)
         q1 = Nc;
     else
-        if(p_no_shoot(x,y,map)<1)
-        q1 = 1+(1-p_no_shoot(x,y,map))*Nc;
-        else 
-        q1 = 1;
-        end
+        q1 = 1*p_no_shoot(x,y,map)+(1-p_no_shoot(x,y,map))*Nc;
     end
 
 end
