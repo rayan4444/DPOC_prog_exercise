@@ -28,6 +28,8 @@ function [ J_opt, u_opt_ind] = ValueIteration(P, G)
 %       	input for each element of the state space. Mapping of the
 %       	terminal state is arbitrary (for example: HOVER).
 global K HOVER
+global ERR
+ERR = 10e-5;
 
 %% Handle terminal state
 % Do yo need to do something with the teminal state before starting policy
@@ -51,7 +53,8 @@ global TERMINAL_STATE_INDEX
             end
            [J_opt(i),u_opt_ind(i)]= min(J_temp);
         end
-        if(max(abs(J_opt-J_old))< 10e-5)
+        
+        if(max(abs(J_opt-J_old))< ERR)
             break;
         else
             J_old = J_opt;
@@ -65,7 +68,7 @@ u_opt_ind = [u_opt_ind(1:TERMINAL_STATE_INDEX-1);...
              u_opt_ind(TERMINAL_STATE_INDEX:end)];
 % same for the cost to go, the cost to go a the terminal stage is zero, so
 % we need to insert zero at the terminal index posiiton in the array
-    J_opt= [J_opt(1:TERMINAL_STATE_INDEX-1);...
+J_opt    = [J_opt(1:TERMINAL_STATE_INDEX-1);...
             0;...
             J_opt(TERMINAL_STATE_INDEX:end)];
  
