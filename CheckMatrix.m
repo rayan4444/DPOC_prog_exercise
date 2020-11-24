@@ -11,15 +11,22 @@ P=ComputeTransitionProbabilities(stateSpace, map);
 G = ComputeStageCosts(stateSpace, map);
 
 %Checks if both matrices are the same (output 0 if no, 1 if yes)
-P_check = isequal(P,P_ex)
-G_check = isequal(G, G_ex)
+P_check = isequal(P, P_array)
+G_check = isequal(G, G_array)
 
-P_check= isequal(P, P_array)
-G_check = isequal(G, G_ex);
 
-P=ComputeTransitionProbabilities(stateSpace, map);
-G = ComputeStageCosts(stateSpace, map);
+%Check for equality of the outputs
+delta_Jp_vi_lp = J_opt_vi - J_opt_lp
+delta_Jp_pi_lp = J_opt_pi - J_opt_lp
+delta_Jp_vi_pi = J_opt_vi - J_opt_pi
 
-%Checks if both matrices are the same (output 0 if no, 1 if yes)
-P_check = isequal(P,P_ex)
-G_check = isequal(G, G_ex)
+Jp_check_vi_lp = isequal(u_opt_ind_vi, u_opt_ind_lp)
+Jp_check_pi_lp = isequal(u_opt_ind_pi,u_opt_ind_lp)
+Jp_check_vi_pi = isequal(u_opt_ind_vi,u_opt_ind_pi) 
+
+
+
+
+
+
+
