@@ -13,4 +13,4 @@ G = ComputeStageCosts(stateSpace, map);
 
 %Checks if both matrices are the same (output 0 if no, 1 if yes)
 P_check= isequal(P, P_array)
-G_check = isequal(G, G_ex);
+G_check = isequal(G, G_ex)

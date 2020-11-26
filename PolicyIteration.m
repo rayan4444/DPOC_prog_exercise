@@ -15,8 +15,8 @@ P(:, TERMINAL_STATE_INDEX,:) = [ ];
 G(TERMINAL_STATE_INDEX,:) = [ ];
 
 %% Initialization
-%Step 0: we initialise policy iteration with any proper policy. HOVER for
-%all is a proper policy so we can start from that 
+%Step 0: we initialise policy iteration with any proper policy.
+% Challenge: how to make sure a policy is proper?
 u_opt_ind = HOVER * ones(K-1,1);  
 
 % initialize matrices to hold results or/and temporary values
@@ -27,7 +27,7 @@ I = eye(K-1);
 Cost = zeros(5,1);
 
 % Matrices used in the recursion algorithm 
-%J_opt_previous = -1*ones(K-1,1); % matrix to hold hte cost to go of the previous step. 
+J_opt_previous = -1*ones(K-1,1); % matrix to hold hte cost to go of the previous step. 
 u_previous = zeros(K-1,1);% matrix to hold the index of the optimal policy for the previous step
 
 %% Policy Iteration
@@ -38,9 +38,9 @@ u_previous = zeros(K-1,1);% matrix to hold the index of the optimal policy for t
 %that if the optimal cost to go has converged, then we can assume the
 %policy iteration has reached its objective
 
-while ~(isequal(u_previous,u_opt_ind))%|| max(abs(J_opt_previous-J_opt)) < 1e-20)
+while ~(isequal(u_previous,u_opt_ind))|| max(abs(J_opt_previous-J_opt)) < 1e-20
     u_previous = u_opt_ind;
-    %J_opt_previous = J_opt;
+    J_opt_previous = J_opt;
     
     %step 1: policy evaluation
     for i=1:K-1
