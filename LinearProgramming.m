@@ -29,6 +29,7 @@ function [ J_opt, u_opt_ind ] = LinearProgramming(P, G)
 %       	terminal state is arbitrary (for example: HOVER).
 
 global K HOVER
+local A b
 
 %% Handle terminal state
 % Do yo need to do something with the teminal state before starting policy
@@ -36,7 +37,31 @@ global K HOVER
 global TERMINAL_STATE_INDEX
 % IMPORTANT: You can use the global variable TERMINAL_STATE_INDEX computed
 % in the ComputeTerminalStateIndex.m file (see main.m)
+I=eye(K);
+J_opt=zeros(K,1);
+f=-ones(K,1);
 
 
+for l=1:5 % iterate for every input
+    for i=i:K
+        for j=i:K
+        %J_opt < G(i,l) + P(i,j,l)*J_opt
+        %I(i)-P(i,j,l)* J_opt < G(i,l)
+        
+        % here we get the A and b parts for a single output, in for of
+        % cells that are then stacked. like this we have a giant stack of
+        % all the possibilities, stacked for all the inputs
+        end
+    end
+    % here is where we actually stack them 
+    %stacked A 
+    
+    %stacked b
+    
+    
+end 
+%after we have our massive matrix we run linprog and it magically spits out a solution
+[%x,fval] = linprog(___), for any input arguments, returns the value of the objective function fun at the solution x: fval = f'*x.
+ [J_opt, u_opt_ind]=linprog(f,A,b);
 end
 
