@@ -40,7 +40,7 @@ function G = ComputeStageCosts(stateSpace, map)
             if (i == TERMINAL_STATE_INDEX)
                 G(i,j)=0;
             else
-            %Scenario 1 : Go north 
+            %Scenario 1 : Input is NORTH 
             if(j == NORTH)
                 G(i,j) = input_not_allowed(x_i,y_i,map,NORTH) + ...
                 0.25*P_WIND*cost_to_go_here(x_i,y_i,map) + ...
@@ -50,30 +50,37 @@ function G = ComputeStageCosts(stateSpace, map)
                 (1-P_WIND)*cost_to_go_here(x_i,y_i+1,map);
 
             end
+            %Scenario 2 : Input is SOUTH
             if(j == SOUTH)
-                G(i,j) = input_not_allowed(x_i,y_i,map,SOUTH)+ 0.25*P_WIND*cost_to_go_here(x_i+1,y_i-1,map) + ...
+                G(i,j) = input_not_allowed(x_i,y_i,map,SOUTH)+ ...
+                0.25*P_WIND*cost_to_go_here(x_i+1,y_i-1,map) + ...
                 0.25*P_WIND*cost_to_go_here(x_i-1,y_i-1,map)+ ...
                 0.25*P_WIND*cost_to_go_here(x_i,y_i-2,map)+ ...
                 0.25*P_WIND*cost_to_go_here(x_i,y_i,map)+ ...
                 (1-P_WIND)*cost_to_go_here(x_i,y_i-1,map);
 
             end
+            %Scenario 3 : Input is WEST
             if(j == WEST)
 
-                G(i,j) =  input_not_allowed(x_i,y_i,map,WEST) + 0.25*P_WIND*cost_to_go_here(x_i-1,y_i+1,map) + ...
+                G(i,j) =  input_not_allowed(x_i,y_i,map,WEST) + ...
+                0.25*P_WIND*cost_to_go_here(x_i-1,y_i+1,map) + ...
                 0.25*P_WIND*cost_to_go_here(x_i-2,y_i,map)+ ...
                 0.25*P_WIND*cost_to_go_here(x_i-1,y_i-1,map)+ ...
                 0.25*P_WIND*cost_to_go_here(x_i,y_i,map)+ ...
                 (1-P_WIND)*cost_to_go_here(x_i-1,y_i,map);
                 
             end
+            %Scenario 4 : Input is EAST
             if(j == EAST)
-                G(i,j) = input_not_allowed(x_i,y_i,map,EAST) + 0.25*P_WIND*cost_to_go_here(x_i+1,y_i+1,map) + ...
+                G(i,j) = input_not_allowed(x_i,y_i,map,EAST) + ...
+                0.25*P_WIND*cost_to_go_here(x_i+1,y_i+1,map) + ...
                 0.25*P_WIND*cost_to_go_here(x_i+2,y_i,map)+ ...
                 0.25*P_WIND*cost_to_go_here(x_i+1,y_i-1,map)+ ...
                 0.25*P_WIND*cost_to_go_here(x_i,y_i,map)+ ...
                 (1-P_WIND)*cost_to_go_here(x_i+1,y_i,map);
             end
+            %Scenario 5 : Input is HOVER
             if(j == HOVER)
                 G(i,j) = 0.25*P_WIND*cost_to_go_here(x_i,y_i-1,map) + ...
                 0.25*P_WIND*cost_to_go_here(x_i,y_i+1,map)+ ...
@@ -87,7 +94,7 @@ function G = ComputeStageCosts(stateSpace, map)
 
 end
 
-function p = p_no_shoot(mx, nx,map)
+function p = p_no_shoot(x,y,map)
 
 global GAMMA R P_WIND
 global FREE TREE SHOOTER PICK_UP DROP_OFF BASE
@@ -103,14 +110,14 @@ global K TERMINAL_STATE_INDEX
 %failure. The probability they all fail is the product of the individual
 %failure probabilities
 p=1;
-[m,n]=size(map);
-for x=1:m
-    for y=1:n
-        if map(x,y)== SHOOTER
+[xmax,ymax]=size(map);
+for i=1:xmax
+    for j=1:ymax
+        if map(i,j)== SHOOTER
             %calculate the distance between the shooter and the drone 
-            dist= (abs(mx-x)+abs(nx-y));
+            dist= (abs(x-i)+abs(y-j));
             if dist <= R
-                p=p*(1-(GAMMA/(dist+1)));
+                p = p*(1-(GAMMA/(dist+1)));
             end 
         end
     end 
@@ -124,8 +131,8 @@ global NORTH SOUTH EAST WEST HOVER
 global K TERMINAL_STATE_INDEX
 q1 = 1;
 [xmax,ymax]=size(map);
-%test if wind push us out of the boundaries
-if(x<1 || x > xmax || y < 1 || y > ymax)
+%Test if wind pushes us out of the boundaries
+if(x < 1 || x > xmax || y < 1 || y > ymax)
     q1 = Nc;
 else
     if(map(x,y) == TREE)
@@ -133,9 +140,7 @@ else
     else
         q1 = 1*p_no_shoot(x,y,map)+(1-p_no_shoot(x,y,map))*Nc;
     end
-
 end
-
 end
 
 function q2 = input_not_allowed(x,y,map,input)
@@ -145,32 +150,38 @@ global NORTH SOUTH EAST WEST HOVER
 global K TERMINAL_STATE_INDEX
 q2 = 0;
 [xmax,ymax]=size(map);
-%test if we want to go in a tree or out of the boundaries
+%Test if we want to go in a tree or out of the boundaries
     
             if ((y == 1)  && (input == SOUTH))
                 q2 = inf;
             end
-            if((y+1<=ymax) && (map(x,y+1)==TREE) && (input == NORTH))
+            
+            if ((y+1 <= ymax) && (map(x,y+1)==TREE) && (input == NORTH))
                 q2 = inf;
             end
 
-            if((y==ymax) && (input == NORTH))
+            if((y == ymax) && (input == NORTH))
                 q2 = inf;
             end
-            if((y-1>=1 && map(x,y-1)==TREE) && (input == SOUTH))
+            
+            if((y-1 >= 1 && map(x,y-1) == TREE) && (input == SOUTH))
                 q2 = inf;
             end
-            if((x==1) && (input == WEST))
+            
+            if((x == 1) && (input == WEST))
                 q2 = inf;
             end
-            if((x-1>=1) && (map(x-1,y)==TREE) && (input == WEST))
-               q2 = inf;
+            
+            if((x-1 >= 1) && (map(x-1,y) == TREE) && (input == WEST))
+                q2 = inf;
             end
+            
             if((x == xmax) && (input == EAST))
                 q2 = inf;
             end
-            if((x+1<=xmax) && (map(x+1,y)==TREE) && (input == EAST))
-                q2=inf;
+            
+            if((x+1 <= xmax) && (map(x+1,y) == TREE) && (input == EAST))
+                q2 = inf;
             end
 
 end
