@@ -88,9 +88,9 @@ A_eq = [];
 b_eq = [];
 
 %Initialising J_opt and u_opt 
-J_opt = ones(K-1,1)
-u_opt = ones(K-1,1)
-u_opt_ind=ones(K-1,1)
+J_opt = ones(K-1,1);
+u_opt = ones(K-1,1);
+u_opt_ind=ones(K-1,1);
 
 %Using linprog function to compute J_opt
 J_opt = linprog(f,A,b,A_eq,b_eq,l_bd,u_bd);
@@ -99,7 +99,7 @@ J_opt = linprog(f,A,b,A_eq,b_eq,l_bd,u_bd);
 %Now looping first through every state as the optimal action for every
 %state should be determined we have: 
 
-cost_every_action=ones(5,1)
+cost_every_action=ones(5,1);
 
 for i = 1:K-1
     for l=1:5
@@ -114,7 +114,7 @@ end
 %At the terminal state, in principle the optimal cost-to-go is 0 and the
 %ideal action is hover
 u_opt_ind = [u_opt_ind(1:TERMINAL_STATE_INDEX-1);5; u_opt_ind(TERMINAL_STATE_INDEX:end)];
-J_opt = [J_opt(1:TERMINAL_STATE_INDEX-1);0;J_opt(TERMINAL_STATE_INDEX:end)]
+J_opt = [J_opt(1:TERMINAL_STATE_INDEX-1);0;J_opt(TERMINAL_STATE_INDEX:end)];
 end
 
 
