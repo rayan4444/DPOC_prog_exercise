@@ -1,3 +1,4 @@
+
 function P = ComputeTransitionProbabilities(stateSpace, map)
 %COMPUTETRANSITIONPROBABILITIES Compute transition probabilities.
 % 	Compute the transition probabilities between all states in the state
@@ -427,4 +428,4 @@ switch d
         end
 end 
 return
-end 
+end
