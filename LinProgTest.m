@@ -1,0 +1,1 @@
+[ J_opt, u_opt_ind, A, b, cost_every_action ] = LinearProgramming(P, G);
