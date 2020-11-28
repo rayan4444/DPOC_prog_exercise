@@ -34,7 +34,7 @@ global K HOVER;
 global TERMINAL_STATE_INDEX;
 
 %Terminal state index should be removed from the P and G matrices. For P,
-%for both the initial and transition state: 
+%considering both the initial and transition state: 
 
 P(TERMINAL_STATE_INDEX,:,:)=[];
 P(:,TERMINAL_STATE_INDEX,:)=[];
