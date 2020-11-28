@@ -110,7 +110,7 @@ for i = 1:K-1
 end
 
 %At the terminal state, in principle the optimal cost-to-go is 0 and the
-%ideal action is assumed as hover:
+%ideal action is assumed as hover
 
 u_opt_ind = [u_opt_ind(1:TERMINAL_STATE_INDEX-1);5; u_opt_ind(TERMINAL_STATE_INDEX:end)];
 J_opt = [J_opt(1:TERMINAL_STATE_INDEX-1);0;J_opt(TERMINAL_STATE_INDEX:end)]
