@@ -1,4 +1,3 @@
-
 function P = ComputeTransitionProbabilities(stateSpace, map)
 %COMPUTETRANSITIONPROBABILITIES Compute transition probabilities.
 % 	Compute the transition probabilities between all states in the state
@@ -28,7 +27,7 @@ global GAMMA R P_WIND
 global FREE TREE SHOOTER PICK_UP DROP_OFF BASE
 global NORTH SOUTH EAST WEST HOVER
 global K TERMINAL_STATE_INDEX
-
+global xmax ymax 
 %% Initialisation
 %By design, the drone can only access a few next states given an initial state. 
 %it makes sense then to initialize the matrix P with zero probablilities
@@ -37,395 +36,434 @@ global K TERMINAL_STATE_INDEX
 %to the exisiting value in the cell 
 
 P=zeros(K,K,5);
+[xmax, ymax]= size(map);
 
-%% Loop going through all the possible start-finish possibilities
-for i=1:K
-    m_i= stateSpace(i,1);
-    n_i= stateSpace(i,2);
-    p_i= stateSpace(i,3); 
-    for j=1:K
-            if i== TERMINAL_STATE_INDEX
-                %if is is ther terminal state, the drone doesn't move anywhere, so
-                % the transition probability to any j that is different than itself
-                % is 0. 
+%% Find the index of the base and the pickup point
+%State space index of the base after a crash
+%ref: https://ch.mathworks.com/matlabcentral/answers/454859-how-to-find-the-row-index-of-specific-vector-in-a-matrix
+[a,b]=find(map==BASE);
+BASE_INDEX=find(ismember(stateSpace, [a,b,0],'rows'));
 
-                %My guess is that only hover input is allowed at this stage?
-                if i==j
-                    for l=1:5
-                        P(i,j,l)=1;
-                    end
-                end 
-%                 
-            else
-                m_j=stateSpace(j,1);
-                n_j=stateSpace(j,2);
-                p_j=stateSpace(j,3);
+%state spce index of pickup location wiht package
+[a,b]=find(map==PICK_UP);
+PICKUP_INDEX=find(ismember(stateSpace, [a,b,1],'rows'));
 
-                %check if the transition is possible given the package status
-                %the change in package status between two consicutive stages only
-                %happens when 
-                %(1)the drone gets shot while having a package: i=1, j=0, j is base
-                %(2)the drone successfully picks up a package; i=0, j=1, j is pickup   
+%% Find the probability of not getting shot for every position in the map 
+shooters =[];
+pns=ones(xmax,ymax);
 
-                if p_i==0 && p_j==1 %drone picked up the package and didn't crash
-                    if map(m_j, n_j) == PICK_UP
-                        %calculate probability of nearby cells
-                        P=P+transition_probabilities_no_crash(i, j, m_i, n_i, m_j, n_j,map);
-                    end
-
-                elseif p_i==1 && p_j==0 %drone crashed
-                   if map(m_j, n_j) == BASE 
-                      P=P+base_transition_probability(i,j,m_i,n_i,map);
-                   end
-
-                elseif p_i==0 && p_j==0 
-                    if map(m_j, n_j) ~= PICK_UP %j cannot be the pickup location and have no package)
-                     %calculate probability of nearby cells
-                     P=P+transition_probabilities_no_crash(i, j, m_i, n_i, m_j, n_j,map);
-                    end 
-                    if map(m_j, n_j) == BASE %if j is the base, we need to include the probability of crashing
-                        P=P+base_transition_probability(i,j,m_i,n_i,map);
-                    end 
-                    
-             
-
-                elseif p_i==1 && p_j==1 % drone moved and didn't crash
-                    %calculate probability of nearby cells
-                    P=P+transition_probabilities_no_crash(i, j, m_i, n_i, m_j, n_j,map);
-                end 
-            end 
-    end
-end
-disp('Finsished calculating transition probabilities');
+%find all the shooters
+for m=1:xmax
+    for n=1:ymax
+        if map(m,n)== SHOOTER
+            shooters=[shooters;m,n];
+        end 
+    end 
 end
 
-%% Determining the probability of not getting shot
-
-function p = p_no_shoot(mx, nx,map)
-
-global GAMMA R P_WIND
-global FREE TREE SHOOTER PICK_UP DROP_OFF BASE
-global NORTH SOUTH EAST WEST HOVER
-global K TERMINAL_STATE_INDEX 
-%determine the probablility of not getting shot given a position x
-
-% Assumption: getting shot by one shooter is independednt from getting shot
-% by another one. however, we can be shot by multiple shooters: not
-% mutually exclusive
-
-%method: find all the shooters on the map, compute their probability of
-%failure. The probability they all fail is the product of the individual
-%failure probabilities
-p=1;
-[m,n]=size(map);
-for x=1:m
-    for y=1:n
-        if map(x,y)== SHOOTER
-            %calculate the distance between the shooter and the drone 
-            dist= (abs(mx-x)+abs(nx-y));
+%calculate the probability of getting not getting shot ofr  every point in
+%the map
+for m=1:xmax
+    for n=1:ymax
+        for i=1:size(shooters,1)
+            dist= (abs(shooters(i,1)-m)+abs(shooters(i,2)-n));
             if dist <= R
-                p=p*(1-(GAMMA/(dist+1)));
+                pns(m,n)=pns(m,n)*(1-(GAMMA/(dist+1)));
             end 
         end
+    end
+end
+
+%% Establish a mapping between map and the state space indexes 
+% to easily go from one to the other. we put the index of the state with 0,
+% knowing that according to how the state space is defined, the index of
+% the same position ut wiht the package would be the result +1
+
+index_of_pos=zeros(xmax,ymax); %the entries that stay 0 correspond to trees
+for i=1:2:K %we skip the indexes of drone with package
+     index_of_pos(stateSpace(i,1), stateSpace(i,2))=i;
+end 
+
+
+%% Building the transition probability matrix
+for i=1:2:K
+   % find i on the map 
+    m= stateSpace(i,1);
+    n= stateSpace(i,2);
+    
+    % Method: for every starting position on the map, we find the
+    % probability of transitioning to the base (in other words, the
+    % probability of crashing) and the probabilities of transitioning to
+    % neighbouring cells, depending on which inputs can be applied. 
+    
+    % Knowing how the stateSpace matrix is built (for every possible position we
+    % have first the state without the package and then with the package),
+    % we can iterate with step 2.
+    
+    % the only special cases we need to take into consideration are: the
+    % Terminal stage, for which the probability of staying is 1 and the
+    % case in which the drone lands on the pickup location without crashing
+    %(change of package staus from 0 to 1) 
+    
+    
+    
+    
+    
+    %if going NORTH is allowed
+    if (n+1)<=ymax 
+       jn=index_of_pos(m,n+1); 
+        if jn~=0
+            %not crashing after input north but staying in place
+            P(i,i,NORTH)= 0.25*P_WIND*pns(m,n);% wind back to i
+            P(i+1,i+1,NORTH)= P(i,i,NORTH);
+            if i+1==PICKUP_INDEX
+                P(i,i+1,NORTH)= 0.25*P_WIND*pns(m,n);
+            end
+            %not crashing after north wind
+            P(i,jn, HOVER) = 0.25*P_WIND*pns(m,n+1);
+            P(i+1,jn+1,HOVER) = P(i,jn, HOVER);
+            
+            %not crashing after North input and no wind
+            P(i,jn,NORTH)= (1-P_WIND)*pns(m,n+1);
+            P(i+1,jn+1,NORTH)= P(i,jn,NORTH);
+            
+            %reaching the pickup location and not crashing
+            if jn+1 == PICKUP_INDEX
+                P(i,jn+1,HOVER) = 0.25*P_WIND*pns(m,n+1);
+                P(i,jn+1,NORTH)= (1-P_WIND)*pns(m,n+1);
+                P(i,jn,NORTH)=0;
+                P(i,jn,HOVER)=0;
+            end 
+        
+        end
+    end
+    %if going SOUTH is within bounds
+    if (n-1)>=1 
+        js=index_of_pos(m,n-1);
+        if js~=0
+            %not crashing after input South but staying in place
+            P(i,i,SOUTH)= 0.25*P_WIND*pns(m,n);
+            P(i+1,i+1,SOUTH)=P(i,i,SOUTH);
+            
+            if i+1==PICKUP_INDEX
+                P(i,i+1,SOUTH)= 0.25*P_WIND*pns(m,n);
+            end
+            %not crashing after north wind
+            P(i,js,HOVER) = 0.25*P_WIND*pns(m,n-1);
+            P(i+1,js+1,HOVER)=P(i,js,HOVER);
+            
+            %not crashing after SOUTH input and no wind
+            P(i,js,SOUTH)= (1-P_WIND)*pns(m,n-1);
+            P(i+1,js+1,SOUTH)=P(i,js,SOUTH);
+            
+            %reaching the pickup location and not crashing
+            if js+1 == PICKUP_INDEX
+              P(i,js+1,HOVER) = 0.25*P_WIND*pns(m,n-1);
+              P(i,js+1,SOUTH)= (1-P_WIND)*pns(m,n-1);  
+              P(i,js,SOUTH)=0;
+              P(i,js,HOVER)=0;
+            end
+            
+        end
+    end
+
+    %if going EAST is allowed
+    if (m+1)<= xmax 
+        je=index_of_pos(m+1,n);
+        if je~=0
+            P(i,i,EAST)= 0.25*P_WIND*pns(m,n);
+            P(i+1,i+1,EAST)=P(i,i,EAST);
+            if i+1==PICKUP_INDEX
+                P(i,i+1,EAST)= 0.25*P_WIND*pns(m,n);
+            end
+
+            P(i,je,HOVER) = 0.25*P_WIND*pns(m+1,n);
+            P(i+1,je+1,HOVER) =P(i,je,HOVER);
+
+            P(i,je,EAST)= (1-P_WIND)*pns(m+1,n);
+            P(i+1,je+1,EAST)=P(i,je,EAST);
+
+            if je+1 == PICKUP_INDEX
+                P(i,je+1,HOVER) = 0.25*P_WIND*pns(m+1,n);
+                P(i,je+1,EAST)= (1-P_WIND)*pns(m+1,n);
+                P(i,je,EAST)=0;
+                P(i,je,HOVER)=0;
+            end
+        end                           
     end 
-end 
+    %if going WEST is allowed 
+    if(m-1)>=1 
+        jw=index_of_pos(m-1,n);
+        if jw~=0
+
+            P(i,i,WEST)= 0.25*P_WIND*pns(m,n);
+            P(i+1,i+1,WEST)= P(i,i,WEST);
+            if i+1==PICKUP_INDEX
+                P(i,i+1,WEST)= 0.25*P_WIND*pns(m,n);
+            end
+
+            P(i,jw,HOVER) = 0.25*P_WIND*pns(m-1,n);
+            P(i+1,jw+1,HOVER) =P(i,jw,HOVER);
+
+            P(i,jw,WEST)= (1-P_WIND)*pns(m-1,n);
+            P(i+1,jw+1,WEST)= P(i,jw,WEST);
+
+            if jw+1 == PICKUP_INDEX
+                P(i,jw+1,HOVER) = 0.25*P_WIND*pns(m-1,n); 
+                P(i,jw+1,WEST)=(1-P_WIND)*pns(m-1,n);
+                P(i,jw,WEST)=0;
+                P(i,jw,HOVER)=0;
+            end
+        end   
+    end  
+
+    % two North
+    if (n+2)<=ymax 
+        j=index_of_pos(m,n+2);                 
+        if j~=0 && jn~=0
+            P(i,j,NORTH)= 0.25*P_WIND*pns(m,n+2);
+            P(i+1,j+1,NORTH)=P(i,j,NORTH);
+
+            if j+1 == PICKUP_INDEX
+                P(i,j+1,NORTH)= 0.25*P_WIND*pns(m,n+2);
+                P(i,j,NORTH)=0;
+            end
+        end
+    end 
+    % two south
+    if (n-2)>=1
+        j=index_of_pos(m,n-2);
+        if j~=0 && js~=0
+            P(i,j,SOUTH)= 0.25*P_WIND*pns(m,n-2);
+            P(i+1,j+1,SOUTH)=P(i,j,SOUTH);
+
+            if j+1 == PICKUP_INDEX
+                P(i,j+1,SOUTH)= 0.25*P_WIND*pns(m,n-2);
+                P(i,j,SOUTH)=0;
+            end
+        end
+    end
+
+    % two East
+    if(m+2)<=xmax 
+        j=index_of_pos(m+2,n);
+        if j~=0 && je~=0
+            P(i,j,EAST)= 0.25*P_WIND*pns(m+2,n);
+            P(i+1,j+1,EAST)= P(i,j,EAST);
+
+            if j+1 == PICKUP_INDEX
+                P(i,j,EAST)= 0.25*P_WIND*pns(m+2,n);
+                P(i,j,EAST)=0;
+            end
+        end
+    end
+    % two West
+    if(m-2)>=1
+        j=index_of_pos(m-2,n);
+        if j~=0 && jw~=0
+            P(i,j,WEST)= 0.25*P_WIND*pns(m-2,n);
+            P(i+1,j+1,WEST)=P(i,j,WEST);
+            if j+1 == PICKUP_INDEX
+                P(i,j+1,WEST)= 0.25*P_WIND*pns(m-2,n);
+                P(i,j,WEST)=0;
+            end 
+        end
+    end
+
+    % NorthEast
+    if (n+1)<=ymax &&(m+1)<= xmax 
+        j=index_of_pos(m+1,n+1);
+        if j~=0
+            if jn~=0
+                P(i,j,NORTH)= 0.25*P_WIND*pns(m+1,n+1);
+                P(i+1,j+1,NORTH)=P(i,j,NORTH);
+                if j+1 == PICKUP_INDEX
+                    P(i,j+1,NORTH)= 0.25*P_WIND*pns(m+1,n+1);
+                    P(i,j,NORTH)=0;
+                end
+            end 
+            if je~=0
+                P(i,j,EAST)= 0.25*P_WIND*pns(m+1,n+1);
+                P(i+1,j+1,EAST)= P(i,j,EAST);
+
+                if j+1 == PICKUP_INDEX
+                    P(i,j+1,EAST)= 0.25*P_WIND*pns(m+1,n+1);
+                    P(i,j,EAST)=0;
+                end
+            end
+        end 
+    end
+    % NorthWest
+    if (n+1)<=ymax &&(m-1)>= 1
+        j=index_of_pos(m-1,n+1);
+        if j~=0
+            if jn~=0
+                P(i,j,NORTH)= 0.25*P_WIND*pns(m-1,n+1);
+                P(i+1,j+1,NORTH)= P(i,j,NORTH);
+                if j+1 == PICKUP_INDEX
+                    P(i,j+1,NORTH)= 0.25*P_WIND*pns(m-1,n+1);
+                    P(i,j,NORTH)=0;
+                end 
+            end 
+            if jw~=0
+                P(i,j,WEST)= 0.25*P_WIND*pns(m-1,n+1);
+                P(i+1,j+1,WEST)= P(i,j,WEST);
+                if j+1 == PICKUP_INDEX
+                    P(i,j+1,WEST)= 0.25*P_WIND*pns(m-1,n+1);
+                    P(i,j,WEST)=0;
+                end
+            end
+        end
+    end
+
+    % SouthEast
+    if (n-1)>= 1 &&(m+1)<= xmax
+        j=index_of_pos(m+1,n-1);
+        if j~=0
+            if js~=0
+                P(i,j,SOUTH)= 0.25*P_WIND*pns(m+1,n-1);
+                P(i+1,j+1,SOUTH)= P(i,j,SOUTH);
+                if j+1 == PICKUP_INDEX
+                    P(i,j+1,SOUTH)= 0.25*P_WIND*pns(m+1,n-1);
+                end
+            end 
+            if je~=0
+                P(i,j,EAST)= 0.25*P_WIND*pns(m+1,n-1);
+                P(i+1,j+1,EAST)=P(i,j,EAST);
+                if j+1 == PICKUP_INDEX
+                    P(i,j+1,EAST)= 0.25*P_WIND*pns(m+1,n-1);
+                    P(i,j,EAST)=0;
+                end
+            end
+        end
+    end
+
+    % SouthWest
+    if (n-1)>= 1 &&(m-1)>= 1
+        j=index_of_pos(m+-1,n-1);
+        if j~=0
+            if js~=0
+                P(i,j,SOUTH)= 0.25*P_WIND*pns(m-1,n-1);
+                P(i+1,j+1,SOUTH)=P(i,j,SOUTH);
+
+                if j+1 == PICKUP_INDEX
+                    P(i,j+1,SOUTH)= 0.25*P_WIND*pns(m-1,n-1);
+                    P(i,j,SOUTH)=0;
+                end
+            end 
+            if jw~=0
+                P(i,j,WEST)= 0.25*P_WIND*pns(m-1,n-1);
+                P(i+1,j+1,WEST)=P(i,j,WEST);
+                if j+1 == PICKUP_INDEX
+                    P(i,j+1,WEST)= 0.25*P_WIND*pns(m-1,n-1);
+                    P(i,j,WEST)=0;
+                end
+            end
+        end
+    end
+    
+    % HOVER is always allowed:
+    %not crashing, in place
+    P(i,i,HOVER) = (1-P_WIND)*pns(m,n);
+    P(i+1,i+1,HOVER) = (1-P_WIND)*pns(m,n);
+    
+    %HANDLING  CRASH TO BASE
+    %crashing in place
+    P(i,BASE_INDEX,HOVER)=P(i,BASE_INDEX,HOVER)+p_base(m,n,pns,map);
+    P(i+1,BASE_INDEX,HOVER)=p_base(m,n,pns,map);
+    
+    %crashing after input north (For the case where there is no package
+    %we must add the crash probability to the displacement probability
+    %in case we end up there by pure displacement and not crash)
+    if (n+1)<=ymax && jn~=0
+        P(i,BASE_INDEX,NORTH)=P(i,BASE_INDEX,NORTH)+p_base(m,n+1,pns,map);
+        P(i+1,BASE_INDEX,NORTH)=p_base(m,n+1,pns,map);
+    end
+    if (n-1)>=1 && js~=0
+        P(i,BASE_INDEX,SOUTH)=P(i,BASE_INDEX,SOUTH)+p_base(m,n-1,pns,map);
+        P(i+1,BASE_INDEX,SOUTH)=p_base(m,n-1,pns,map);
+    end
+    if (m+1)<=xmax && je~=0
+        P(i,BASE_INDEX,EAST)=P(i,BASE_INDEX,EAST)+p_base(m+1,n,pns,map);
+        P(i+1,BASE_INDEX,EAST)=p_base(m+1,n,pns,map);
+    end
+    if (m-1)>=1 && jw~=0
+        P(i,BASE_INDEX,WEST)=P(i,BASE_INDEX,WEST)+p_base(m-1,n,pns,map);
+        P(i+1,BASE_INDEX,WEST)=p_base(m-1,n,pns,map);
+    end
+    
+    if i+1 == PICKUP_INDEX
+        %being a the pickup place without collecting a package and without
+        %crashing is not possible
+        P(i,i,:)=zeros(5,1);
+        %being at the pickup
+        P(i,i+1, HOVER)=(1-P_WIND)*pns(m,n);
+    end 
+
+end
+% Correct for terminal state
+P(TERMINAL_STATE_INDEX,:,:)=zeros(K,5);
+P(TERMINAL_STATE_INDEX,TERMINAL_STATE_INDEX,:)=ones(5,1);
 
 end 
 
-%% Determining the transtition probability in case of crash
 
-function P=base_transition_probability(i,j,m_i,n_i,map)
 
-global GAMMA R P_WIND
-global FREE TREE SHOOTER PICK_UP DROP_OFF BASE
-global NORTH SOUTH EAST WEST HOVER
-global K TERMINAL_STATE_INDEX
 
-%determine map bounds
-[xmax,ymax]=size(map);
-P=zeros(K,K,5);
- %scenario 1: Hover position is always allowed
-   P=P+transition_probability_crash(i,j,HOVER, m_i, n_i,map);
-
-   %scenario 2: NORTH input is allowed
-   if (n_i+1)<= ymax
-     pos= map(m_i,n_i+1); % position after a north input
-     if (pos ~= TREE)
-        P=P+transition_probability_crash(i,j,NORTH,m_i,n_i+1,map);
-     end
-   end
-
-   %scenario 3: SOUTH input is allowed
-   if (n_i-1)>=1
-     pos= map(m_i,n_i-1); % position after a north input
-     if (pos ~= TREE)
-        P=P+transition_probability_crash(i,j,SOUTH,m_i,n_i-1,map);
-     end
-   end
-
-   %scenario 4: EAST input is allowed
-   if (m_i+1)<= xmax
-   pos= map(m_i+1,n_i); % position after a north input
-     if (pos ~= TREE)
-        P=P+transition_probability_crash(i,j,EAST,m_i+1,n_i,map);
-     end
-   end
-
-   %scenario 5: WEST input is allowed
-   if (m_i-1)>= 1
-        pos= map(m_i-1,n_i); % position after a north input
-     if (pos ~= TREE)
-        P=P+transition_probability_crash(i,j,WEST,m_i-1,n_i,map);
-     end
-   end
-   return
-end 
-
-function P=transition_probability_crash(i, j,input, mi, ni,map)
-
-global GAMMA R P_WIND
-global FREE TREE SHOOTER PICK_UP DROP_OFF BASE
-global NORTH SOUTH EAST WEST HOVER
-global K TERMINAL_STATE_INDEX 
-
-%determine map bounds
-[xmax,ymax]=size(map);
-P=zeros(K,K,5);
+%%
+function p_crash=p_base(mi,ni,pns, map)
+global xmax ymax TREE P_WIND
+p_crash=0;
 %reminder: we know for sure that in this case j is BASE
 % here mi and ni are the coordinates of the temporary position (between
 % i and the crash)
 
    % scenario 1: no wind, get shot 
-    P(i,j,input)= P(i,j,input) + (1-P_WIND)*(1-p_no_shoot(mi,ni,map));
+     p_crash=  p_crash + (1-P_WIND)*(1-pns(mi,ni));
     
     %scenario 2: wind North
     if (ni+1)>ymax % blown off map
-        P(i,j,input)=P(i,j,input)+0.25*P_WIND;
+         p_crash= p_crash+0.25*P_WIND;
     else
-        temp= map(mi,ni+1);
-        if (temp ~= TREE) %get shot in new spot
+        if (map(mi,ni+1)~= TREE) %get shot in new spot
             % if the temporary position is not an obstacle then you got
             % shot
-            P(i,j,input)= P(i,j,input)+0.25*P_WIND*(1-p_no_shoot(mi,ni+1,map));
+             p_crash=  p_crash+0.25*P_WIND*(1-pns(mi,ni+1));
         else % run into a tree
-            P(i,j,input)=P(i,j,input)+0.25*P_WIND;
+             p_crash= p_crash+0.25*P_WIND;
         end
     end 
     
     % scenario 3: wind South
     if (ni-1)<1 %blown off map
-        P(i,j,input)=P(i,j,input)+0.25*P_WIND;
+         p_crash= p_crash+0.25*P_WIND;
     else
-        temp= map(mi,ni-1);
-        if (temp ~= TREE) %get shot in new spot
-            P(i,j,input)= P(i,j,input)+0.25*P_WIND*(1-p_no_shoot(mi,ni-1,map));
+        if (map(mi,ni-1) ~= TREE) %get shot in new spot
+             p_crash=  p_crash+0.25*P_WIND*(1-pns(mi,ni-1));
         else % run into a tree
-            P(i,j,input)=P(i,j,input)+0.25*P_WIND;
+             p_crash= p_crash+0.25*P_WIND;
         end
     end
     
     % scenario 4: wind East
     if (mi+1)> xmax %blown off map
-        P(i,j,input)=P(i,j,input)+0.25*P_WIND;
+         p_crash= p_crash+0.25*P_WIND;
     else
-        temp= map(mi+1,ni);
-        if (temp ~= TREE)% get shot in new spot
-            P(i,j,input)= P(i,j,input)+0.25*P_WIND*(1-p_no_shoot(mi+1,ni,map));
+        if (map(mi+1,ni)~= TREE)% get shot in new spot
+             p_crash=  p_crash+0.25*P_WIND*(1-pns(mi+1,ni));
         else % run into a tree
-            P(i,j,input)=P(i,j,input)+0.25*P_WIND;
+             p_crash= p_crash +0.25*P_WIND;
         end
     end
     
     % scenario 5: wind West
     if (mi-1)<1 %blown off map
-        P(i,j,input)=P(i,j,input)+0.25*P_WIND;
+         p_crash= p_crash+0.25*P_WIND;
     else
-        temp= map(mi-1,ni);
-        if (temp ~= TREE)% get shot in new spot
-            P(i,j,input)= P(i,j,input)+0.25*P_WIND*(1-p_no_shoot(mi-1,ni,map));
+        if (map(mi-1,ni)~= TREE)% get shot in new spot
+             p_crash=  p_crash+0.25*P_WIND*(1-pns(mi-1,ni));
         else % run into a tree
-            P(i,j,input)=P(i,j,input)+0.25*P_WIND;
+             p_crash= p_crash+0.25*P_WIND;
         end
     end
-    return
 end 
-
-%% Determining the transition probability in the case of no crashes.
-
-function P=transition_probabilities_no_crash(i, j, mi, ni, mj, nj,map)
-
-global GAMMA R P_WIND
-global FREE TREE SHOOTER PICK_UP DROP_OFF BASE
-global NORTH SOUTH EAST WEST HOVER
-global K TERMINAL_STATE_INDEX
-
-P=zeros(K,K,5);
-%determine the distance between i and j to see if j is reacheable
-d =(abs(mi-mj)+abs(ni-nj));
-pns = p_no_shoot(mj, nj,map);
-
-%determine map bounds
-[xmax,ymax]=size(map);
-
-switch d
-    case 0 % staying in place
-        %scenario 1: input = hover, given no wind and no getting shot 
-        P(i, j, HOVER) = P(i, j, HOVER)+(1-P_WIND)*(pns);
-        
-        %scenario 2: input = north, wind sounth, no getting shot
-            if (ni+1)<=ymax
-                temp= map(mi,ni+1);
-                if (temp ~=TREE)
-                    P(i,j,NORTH)=  0.25*P_WIND*(pns);
-                end 
-            end
-        
-        %scenario 3: input = south, wind north, no getting shot
-        if (ni-1)>=1
-            temp= map(mi,ni-1);
-            if (temp ~= TREE)
-                P(i,j,SOUTH)= 0.25*P_WIND*(pns);
-            end
-        end
-        
-        %scenario 4: input = east, wind west, no getting shot
-        if (mi+1)<= xmax
-            temp= map(mi+1,ni);
-            if (temp ~= TREE) 
-                P(i,j,EAST)= 0.25*P_WIND*(pns);
-            end
-        end 
-        
-        %scenario 5: input = west, wind east, no getting shot 
-        if( mi-1)>=1
-            temp= map(mi-1,ni);
-            if (temp ~= TREE)
-                P(i,j,WEST)= 0.25*P_WIND*(pns);
-            end
-        end 
-        
-    case 1 % moving by one:
-        
-        %since we go directly to j without intermediate steps and j is a
-        %possible output, there is no need to check for out of bounds or
-        %trees 
-        
-        % scenario 1: input = hover, wind in any direction, no getting shot
-        P(i, j, HOVER) = 0.25*P_WIND*(pns);
-        % scenario 2: input = direction, no wind, no getting shot.
-        switch (mi-mj)
-            case 0
-                if nj>ni
-                    %j is to the north of i
-                    P(i,j,NORTH)= (1-P_WIND)*(pns);
-                else 
-                    %j is to the south of i 
-                    P(i,j,SOUTH)= (1-P_WIND)*(pns);
-                end
-            case 1
-                %j is to the west of i 
-                P(i,j,WEST)= (1-P_WIND)*(pns);
-            case -1
-                %j is to the east of i
-                P(i,j,EAST)= (1-P_WIND)*(pns);
-        end 
-        
-    case 2 % moving by 2
-        if mi==mj 
-            % since j is given we know it is not out of bounds. But we need
-            % to make sure there is no tree in the intermediate step
-            
-            if nj>ni % j is to the north of i 
-                %scenario: input = north, wind north, no getting shot
-                if (map(mi, ni+1)~= TREE)
-                    P(i,j,NORTH)= 0.25*P_WIND*(pns);
-                end
-            else  % j is to the south of i 
-                %scenario: input = south, wind south, no getting shot
-                if (map(mi, ni-1)~= TREE)
-                    P(i,j,SOUTH)= 0.25*P_WIND*(pns);
-                end
-            end 
-        end 
-        
-        if ni==nj
-            % since j is given we know it is not out of bounds. But we need
-            % to make sure there is no tree in the intermediate step
-            
-            if mj>mi % j is to the east of i 
-                %scenario: input = east, wind east, no getting shot 
-                if (map(mi+1, ni)~= TREE)
-                    P(i,j,EAST)= 0.25*P_WIND*(pns);
-                end
-            else  % j is to the west of i 
-                %scenario: input = south, wind south, no getting shot
-                if (map(mi-1, ni)~= TREE)
-                    P(i,j,WEST)= 0.25*P_WIND*(pns);
-                end
-            end 
-        end 
-        
-        if mj==(mi+1)
-            % as long as the desitnation exists, we know that the
-            % intermediate step is within map bounds, so we only need to
-            % make sure there are no trees in the way 
-            
-            if nj>ni %j is north-east of i 
-                %scenario 1: input = north, wind east, no getting shot
-                temp= map(mi,ni+1);
-                if (temp ~= TREE)
-                    P(i,j,NORTH)= 0.25*P_WIND*(pns);
-                end 
-                
-                %scenario 2: input = east, wind north, no getting shot
-                temp= map(mi+1,ni);
-                if (temp ~= TREE)
-                    P(i,j,EAST)= 0.25*P_WIND*(pns);
-                end
-            else %j is south-east of i
-                 %scenario 1: input = south, wind east, no getting shot
-                 temp= map(mi,ni-1);
-                if (temp ~= TREE)
-                    P(i,j,SOUTH)= 0.25*P_WIND*(pns);
-                end
-                %scenario 2: input = east, wind south, no getting shot
-                 temp= map(mi+1,ni);
-                if (temp ~= TREE)
-                    P(i,j,EAST)=  0.25*P_WIND*(pns);
-                end
-            end 
-        end
-        
-        if mj==(mi-1)
-            % as long as the desitnation exists, we know that the
-            % intermediate step is within map bounds, so we only need to
-            % make sure there are no trees in the way 
-            
-            if nj>ni %j is north-west of i 
-                %scenario 1: input = north, wind west, no getting shot
-                temp= map(mi,ni+1);
-                if (temp ~= TREE)
-                    P(i,j,NORTH)= 0.25*P_WIND*(pns);
-                end 
-                
-                %scenario 2: input = est, wind north, no getting shot
-                temp= map(mi-1,ni);
-                if (temp ~= TREE)
-                    P(i,j,WEST)= 0.25*P_WIND*(pns);
-                end
-            else %j is south-east of i
-                 %scenario 1: input = south, wind west, no getting shot
-                 temp= map(mi,ni-1);
-                if (temp ~= TREE)
-                    P(i,j,SOUTH)= 0.25*P_WIND*(pns);
-                end
-                %scenario 2: input = west, wind south, no getting shot
-                 temp= map(mi-1,ni);
-                if (temp ~= TREE)
-                    P(i,j,WEST)= 0.25*P_WIND*(pns);
-                end
-            end 
-        end
-end 
-return
-end
