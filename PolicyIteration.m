@@ -14,8 +14,11 @@ P(TERMINAL_STATE_INDEX,:,:) = [ ];
 P(:, TERMINAL_STATE_INDEX,:) = [ ];
 G(TERMINAL_STATE_INDEX,:) = [ ];
 
-%We cannot have infinity in the G matrix for the computations. We can
-%either choose to remove it or set it to a very large number as below. 
+%If we want to simply the search for a proper policy, it's eaasier to use a
+%randomly generated one. However in cases where the inputs are not allowed,
+%the cost matrix will hold infinity in it and that breaks the calculations.
+%We can either choose to remove infinity values from the cost matrix or set
+%them to a very large number as below.
 G(isinf(G))=10^12;
 
 %% Initialization
@@ -65,7 +68,7 @@ u_previous = zeros(K-1,1);% matrix to hold the index of the optimal policy for t
  while ~(isequal(u_previous,u_opt_ind))|| max(abs(J_opt_previous-J_opt)) < 1e-20
     u_previous = u_opt_ind;
     J_opt_previous = J_opt;
-    counter=counter+1;
+%     counter=counter+1;
 %step 1: policy evaluation
         for i=1:K-1
             G_u_h(i) = G(i,u_previous(i));
@@ -97,8 +100,8 @@ J_opt = [J_opt(1:TERMINAL_STATE_INDEX-1,:);...
 u_opt_ind = [u_opt_ind(1:TERMINAL_STATE_INDEX-1);...
             HOVER;...
             u_opt_ind(TERMINAL_STATE_INDEX:end)];
-        disp('number of iterations:');
-        disp(counter);
+%         disp('number of iterations:');
+%         disp(counter);
 
 end
 
