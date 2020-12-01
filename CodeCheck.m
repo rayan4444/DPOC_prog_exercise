@@ -14,7 +14,6 @@
 % --
 
 for i = 1:5
-
 %% Clear workspace and command window
 clear all;
 close all;
@@ -176,18 +175,29 @@ end
 
 [fc_vi_lp_u, fc_pi_lp_u, fc_vi_pi_u,fc_vi_lp_delta,fc_pi_lp_delta,fc_vi_pi_delta] = CheckMatrix(J_opt_vi,J_opt_pi,J_opt_lp,u_opt_ind_vi,u_opt_ind_pi,u_opt_ind_lp);
 
-if fc_vi_lp_u == 0 | fc_vi_lp_delta > abs(0.01)
+% if fc_vi_lp_u == 0 | fc_vi_lp_delta > abs(0.01)
+%     disp("Oh no, something went wrong in either VI or LP" )
+%     break
+
+% elseif fc_pi_lp_u == 0 | fc_pi_lp_delta > abs(0.01)
+%     disp("Oh no, something went wrong in either PI or LP" )
+%     break
+
+% elseif fc_vi_pi_u == 0 | fc_vi_pi_delta > abs(0.01)
+%     disp("Oh no, something went wrong in either PI or LP" )
+%     break
+
+    if fc_vi_lp_delta > abs(0.001)
     disp("Oh no, something went wrong in either VI or LP" )
     break
 
-elseif fc_pi_lp_u == 0 | fc_pi_lp_delta > abs(0.01)
+    elseif fc_pi_lp_delta > abs(0.001)
     disp("Oh no, something went wrong in either PI or LP" )
     break
 
-elseif fc_vi_pi_u == 0 | fc_vi_pi_delta > abs(0.01)
+    elseif fc_vi_pi_delta > abs(0.001)
     disp("Oh no, something went wrong in either PI or LP" )
     break
-
 else
    disp("Yay, I think all good")
 
