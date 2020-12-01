@@ -20,7 +20,7 @@ function[Jp_check_vi_lp,Jp_check_pi_lp,Jp_check_vi_pi,delta_Jp_vi_lp,delta_Jp_pi
 
 %Check for equality of the outputs
 delta_Jp_vi_lp = J_opt_vi - J_opt_lp;
-delta_Jp_pi_lp = J_opt_vi - J_opt_lp;
+delta_Jp_pi_lp = J_opt_pi - J_opt_lp;
 delta_Jp_vi_pi = J_opt_vi - J_opt_pi;
 
 Jp_check_vi_lp = isequal(u_opt_ind_vi, u_opt_ind_lp);
